@@ -11,6 +11,7 @@ import pandas as pd
 import numpy as np
 from sb3_contrib import RecurrentPPO
 from stable_baselines3 import PPO
+from news_filter import EconomicNewsFilter
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT_DIR / "data"
@@ -519,6 +520,12 @@ def run_multi_daemon():
                             if is_weekend_lockout():
                                 print(f" -> {sym} setup confirmed, but blocked by Weekend Lockout (protecting against Monday gaps).")
                                 log_event(sym, "SETUP_SKIPPED_WEEKEND", c_price, c_trend, c_rsi, c_atr, "LOCKED_WEEKEND", candidate_dir)
+                                continue
+
+                            is_news_risk, news_reason = EconomicNewsFilter.check_high_impact_window()
+                            if is_news_risk:
+                                print(f" -> {sym} setup confirmed, but blocked by Economic News Shield: {news_reason}")
+                                log_event(sym, "SETUP_SKIPPED_NEWS_SHIELD", c_price, c_trend, c_rsi, c_atr, "NEWS_LOCKOUT", candidate_dir, status=news_reason)
                                 continue
 
                             active_list = list(active_tickets.values())

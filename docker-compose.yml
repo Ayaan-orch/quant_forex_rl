@@ -1,0 +1,20 @@
+services:
+  dashboard:
+    build: .
+    container_name: quant_forex_dashboard
+    ports:
+      - "8501:8501"
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+    command: streamlit run src/dashboard.py --server.port=8501 --server.address=0.0.0.0
+
+  backtest:
+    build: .
+    container_name: quant_forex_backtest
+    volumes:
+      - .:/app
+    command: python src/backtest.py
+    profiles:
+      - tools

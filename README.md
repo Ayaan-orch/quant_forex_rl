@@ -132,6 +132,12 @@ Run the live execution daemon connected to MetaTrader 5:
 python src/multi_asset_execution.py
 ```
 
+### 6. Docker Deployment (Optional)
+Run the live Streamlit dashboard in a Docker container:
+```bash
+docker compose up
+```
+
 ---
 
 ## System Architecture & Specification

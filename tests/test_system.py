@@ -89,6 +89,23 @@ class TestQuantForexSystem(unittest.TestCase):
         wednesday_noon = datetime(2026, 11, 4, 14, 0, tzinfo=timezone.utc)
         self.assertFalse(is_weekend_lockout(wednesday_noon), "Midweek session must not trigger lockout.")
 
+    def test_economic_news_shield(self):
+        """Verifies that high-impact economic news windows trigger execution lockout."""
+        from datetime import datetime, timezone
+        from news_filter import EconomicNewsFilter
+
+        # 1st Friday of month at 13:00 UTC -> NFP window -> Must trigger shield
+        nfp_release_time = datetime(2026, 11, 6, 13, 0, tzinfo=timezone.utc)
+        is_active, reason = EconomicNewsFilter.check_high_impact_window(nfp_release_time)
+        self.assertTrue(is_active, "NFP release time must activate news shield.")
+        self.assertIn("NFP", reason)
+
+        # Normal trading hour -> Should be clear
+        calm_time = datetime(2026, 11, 10, 10, 0, tzinfo=timezone.utc)
+        is_active, reason = EconomicNewsFilter.check_high_impact_window(calm_time)
+        self.assertFalse(is_active, "Normal session should not activate news shield.")
+        self.assertEqual(reason, "CLEAR")
+
     def test_pretrained_policy_inference(self):
         """Verifies ppo_forex_policy.zip loads and makes valid predictions."""
         from sb3_contrib import RecurrentPPO
