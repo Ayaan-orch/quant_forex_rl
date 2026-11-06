@@ -1,0 +1,17 @@
+# Environments
+.env
+.venv/
+venv/
+ENV/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Data logs & artifacts (optional local state)
+*.zip
+*.log
+*.db
+.vscode/
