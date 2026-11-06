@@ -126,13 +126,24 @@ python src/train.py
 python src/train.py --resume
 ```
 
-### 5. Multi-Asset Live / Demo Execution
+### 5. Run Monte Carlo Stress Test & Value at Risk (VaR)
+Execute 2,500 bootstrap permutations with adverse slippage injection to audit drawdown distributions:
+```bash
+python src/stress_test.py
+```
+This generates statistical risk percentiles and saves `reports/monte_carlo_stress_test.png`.
+
+### 6. Multi-Asset Live / Demo Execution
 Run the live execution daemon connected to MetaTrader 5:
 ```bash
+# Standard direct run:
 python src/multi_asset_execution.py
+
+# 24/5 Production Watchdog (Auto-restarts on network/broker drops):
+python scripts/run_daemon_watchdog.py
 ```
 
-### 6. Docker Deployment (Optional)
+### 7. Docker Deployment (Optional)
 Run the live Streamlit dashboard in a Docker container:
 ```bash
 docker compose up

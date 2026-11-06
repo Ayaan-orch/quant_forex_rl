@@ -122,6 +122,19 @@ class TestQuantForexSystem(unittest.TestCase):
             action, _ = model.predict(dummy_obs, deterministic=True)
             self.assertIn(int(action), [0, 1], "Model action must be binary (0 or 1).")
 
+    def test_monte_carlo_resampling(self):
+        """Verifies Monte Carlo resampling statistical integrity."""
+        from stress_test import run_monte_carlo_stress_test
+
+        synthetic_returns = np.array([0.02, -0.01, 0.025, -0.008, 0.015, -0.005, 0.03, -0.01])
+        results = run_monte_carlo_stress_test(synthetic_returns, n_simulations=100)
+
+        self.assertIn("var_95_dd_pct", results)
+        self.assertIn("prob_profit", results)
+        self.assertGreaterEqual(results["prob_profit"], 0.0)
+        self.assertLessEqual(results["prob_profit"], 100.0)
+        self.assertEqual(results["equity_paths"].shape, (100, len(synthetic_returns) + 1))
+
 
 if __name__ == "__main__":
     unittest.main()

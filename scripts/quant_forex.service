@@ -1,0 +1,17 @@
+[Unit]
+Description=Quant Forex RL - 24/5 Autonomous Execution Daemon
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/quant_forex_rl
+ExecStart=/opt/quant_forex_rl/.venv/bin/python /opt/quant_forex_rl/scripts/run_daemon_watchdog.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

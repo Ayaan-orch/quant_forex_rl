@@ -4,13 +4,17 @@ from pathlib import Path
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import MetaTrader5 as mt5
+try:
+    import MetaTrader5 as mt5
+except ImportError:
+    mt5 = None
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT_DIR / "data"
 LOG_FILE = DATA_DIR / "live_trades_log.csv"
 DB_FILE = DATA_DIR / "trades_telemetry.db"
 PLOT_FILE = ROOT_DIR / "backtest_performance.png"
+STRESS_PLOT_FILE = ROOT_DIR / "reports" / "monte_carlo_stress_test.png"
 
 st.set_page_config(
     page_title="Forex RL Telemetry & Risk Monitor", 
@@ -23,7 +27,7 @@ st.title("⚡ Quant Forex RL — Live Telemetry & Risk Monitor")
 # Top Metrics Row (Live MT5 Connection)
 col1, col2, col3, col4, col5 = st.columns(5)
 
-mt5_connected = mt5.initialize()
+mt5_connected = mt5.initialize() if mt5 is not None else False
 if mt5_connected:
     account_info = mt5.account_info()
     positions = mt5.positions_get()
@@ -110,26 +114,39 @@ else:
 
 st.divider()
 
-# Backtest Performance Artifacts
-st.subheader("📈 Institutional Backtest Diagnostics")
-b_col1, b_col2 = st.columns([1.5, 1])
+# Backtest & Stress Test Performance Artifacts
+st.subheader("📈 Institutional Diagnostics & Stress-Testing")
 
-with b_col1:
+tab_backtest, tab_monte_carlo, tab_risk = st.tabs([
+    "📈 Out-of-Sample Performance", 
+    "🎲 Monte Carlo Stress Test & VaR", 
+    "🛡️ Risk Management Specifications"
+])
+
+with tab_backtest:
     if PLOT_FILE.exists():
         st.image(str(PLOT_FILE), caption="Out-of-Sample Performance Curve & Drawdown Profile", use_container_width=True)
     else:
         st.info("Run `src/backtest.py` to generate the latest out-of-sample performance chart.")
 
-with b_col2:
+with tab_monte_carlo:
+    if STRESS_PLOT_FILE.exists():
+        st.image(str(STRESS_PLOT_FILE), caption="2,500 Monte Carlo Bootstrap Trajectories & Value at Risk (VaR)", use_container_width=True)
+    else:
+        st.info("Run `src/stress_test.py` to generate the latest Monte Carlo stress-testing distribution.")
+
+with tab_risk:
     st.markdown("""
-    ### 🛡️ Production Risk Controls
-    * **Model Architecture**: Recurrent PPO (`MlpLstmPolicy`) with LSTM memory
-    * **Trade Management**: Dynamic Breakeven (+0.8 ATR) & Trailing Stop (+1.2 ATR) with +2.2R target
-    * **Position Sizing**: Institutional 1.0% Fixed Fractional Equity Risk
-    * **Daily Max Drawdown Breaker**: `-3.0%` Circuit Breaker
-    * **Max Holding Window**: 24 hours (24 bars on H1)
-    * **Microstructure**: Real-time session-aware dynamic cost and stochastic slippage
-    * **Telemetry Database**: Thread-safe SQLite (`data/trades_telemetry.db`)
+    ### 🛡️ Production Risk Controls & Edge Specifications
+    * **Policy Network**: Recurrent PPO (`sb3_contrib.RecurrentPPO` / `MlpLstmPolicy`) with 64-unit temporal LSTM
+    * **Conviction Gating**: Orders execute strictly when softmax probability $P(\text{Trade}) \ge 0.88$ (rejects 84% chop)
+    * **Asymmetric Execution**: 2.5 : 1 Reward-to-Risk bracket with dynamic Breakeven (+1.0 ATR) and Trailing Stop (+1.6 ATR)
+    * **Currency Correlation Guard**: Net directional USD exposure capped at 1 position across portfolio
+    * **High-Impact News Shield**: Automatic order lockout during US NFP and FOMC rate decision windows
+    * **Weekend Protection**: Auto-lockout on Friday after 19:00 UTC through Sunday pre-market
+    * **Position Sizing**: Volatility-adjusted 1.0% Fixed Fractional Equity Risk
+    * **Drawdown Circuit Breaker**: `-3.0%` Daily Floating Drawdown Emergency Halt
+    * **Telemetry Database**: Persistent, thread-safe SQLite telemetry (`data/trades_telemetry.db`)
     """)
 
 if st.button("🔄 Refresh Telemetry Dashboard"):
