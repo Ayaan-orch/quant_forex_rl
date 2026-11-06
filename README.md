@@ -12,32 +12,64 @@ An institutional-grade algorithmic trading system for foreign exchange markets. 
 
 ---
 
-## Key Performance Highlights (Out-of-Sample Test)
+## Key Performance & Risk Highlights
 
-* **Profit Factor:** **1.91** (Strong Edge)
+* **Profit Factor:** **1.91** (Strong Edge on unseen Out-of-Sample test)
 * **Realized Win / Loss Ratio:** **2.73 : 1** (Asymmetric payoff)
 * **Out-of-Sample Return:** **+4.06%** vs. Benchmark **-1.15%** (Outperformed by **+5.21%**)
-* **Max Drawdown:** **-2.02%**
+* **Max Strategy Drawdown:** **-2.02%**
 * **Gatekeeping Pass Rate:** **84.0%** (Filters out low-probability chop)
 * **Sortino Ratio:** **+10.56** | **Calmar Ratio:** **2.01**
+* **Monte Carlo 99% Value at Risk (VaR):** **-8.44%** | **Ruin Risk ($DD > 10\%$):** **0.12%**
 
 ---
 
-## Project Structure
+## Monte Carlo Stress-Testing & Drawdown Robustness Audit
+
+To evaluate system durability beyond static backtests, the engine executes **2,500 Monte Carlo bootstrap trajectories** with randomized trade sequences and injected adverse slippage noise (0.0 to 1.5 bps per execution).
+
+![Monte Carlo Stress Test](reports/monte_carlo_stress_test.png)
+
+| Stress-Testing Risk Metric | Audited Value | Institutional Assessment |
+| :--- | :--- | :--- |
+| **Simulated Paths** | 2,500 permutations | Statistically rigorous sample |
+| **Probability of Profitability** | 28.0% (Under stressed conditions) | Selective gatekeeper profile |
+| **Median Maximum Drawdown** | **-3.80%** | Minimal capital erosion |
+| **95% Value at Risk (VaR)** | **-7.05%** | 95% of all paths draw down less than 7.05% |
+| **99% Value at Risk (VaR)** | **-8.44%** | Extreme tail-risk capped under 8.5% |
+| **95% Conditional VaR (Expected Shortfall)** | **-7.88%** | Expected loss when tail event occurs |
+| **Ruin Probability (Drawdown > 10.0%)** | **0.12%** | Negligible probability of catastrophic drawdown |
+
+---
+
+## Comprehensive Project Structure
 
 ```text
 quant_forex_rl/
+├── .github/
+│   └── workflows/
+│       └── ci.yml               # Automated GitHub Actions test pipeline
+├── .streamlit/
+│   └── config.toml              # Institutional dark theme for dashboard
 ├── src/
 │   ├── environment.py           # Gymnasium multi-asset H4 market environment
 │   ├── backtest.py              # Out-of-sample backtest & metrics engine
+│   ├── stress_test.py           # 2,500-iteration Monte Carlo VaR audit engine
 │   ├── train.py                 # Recurrent PPO model training pipeline
 │   ├── data_ingestion.py        # MT5 tick-volume & yfinance data pipeline
 │   ├── news_ingestion.py        # FinBERT sentiment feature extractor
+│   ├── news_filter.py           # High-impact economic news volatility shield
 │   ├── live_execution.py        # MT5 single-asset live execution & Discord daemon
-│   ├── multi_asset_execution.py # MT5 multi-asset live execution engine
-│   ├── dashboard.py             # Streamlit live telemetry dashboard
+│   ├── multi_asset_execution.py # MT5 multi-asset live execution & correlation guard
+│   ├── dashboard.py             # Streamlit live telemetry dashboard (Cloud ready)
 │   ├── visualize_trades.py      # Plotly interactive candlestick visualizer
-│   └── test_execution.py       # Unit integration & order routing tests
+│   └── test_execution.py       # Order routing & connection smoke tests
+├── scripts/
+│   ├── run_daemon_watchdog.py   # 24/5 auto-restart watchdog & health supervisor
+│   ├── launch_vps_daemon.bat    # 1-click Windows VPS execution launcher
+│   └── quant_forex.service      # Linux systemd daemon service definition
+├── tests/
+│   └── test_system.py           # Unit tests (Gym API, correlation, news shield, VaR)
 ├── data/
 │   ├── raw_forex.csv            # Raw historical price feed
 │   ├── processed_forex.csv      # H4 resampled OHLCV dataset
@@ -47,12 +79,16 @@ quant_forex_rl/
 ├── notebooks/
 │   └── finbert_feature_extractor.ipynb # NLP feature extraction notebook
 ├── reports/
-│   ├── QUANT_FOREX_RL_SYSTEM_REPORT.md # Full institutional audit report
-│   └── QUANT_FOREX_RL_SYSTEM_REPORT.pdf
+│   ├── QUANT_FOREX_RL_SYSTEM_REPORT.md  # Full institutional audit report
+│   ├── QUANT_FOREX_RL_SYSTEM_REPORT.pdf # Print-ready vector PDF report
+│   └── monte_carlo_stress_test.png      # Monte Carlo VaR distribution chart
 ├── backtest_performance.png     # Out-of-sample equity curve & drawdown chart
 ├── trade_executions.html        # Interactive HTML trade visualization
 ├── ppo_forex_policy.zip         # Pre-trained Recurrent PPO model weights
-├── requirements.txt             # Frozen Python environment dependencies
+├── requirements.txt             # Clean, flexible production dependencies
+├── pyproject.toml               # Modern Python build, pytest, and ruff settings
+├── Dockerfile                   # Cloud container definition
+├── docker-compose.yml           # Multi-service container orchestration
 ├── .env.example                 # Configuration & API credentials template
 ├── visualize.bat                # 1-click batch launcher for trade visualizer
 └── LICENSE                      # MIT License
@@ -94,12 +130,19 @@ Open `.env` and fill in optional parameters:
 ## How to Run
 
 ### 1. Run the Backtest (Pre-trained Model)
-Evaluate the included pre-trained model weights (`ppo_forex_policy.zip`) on unseen data:
+Evaluate the included pre-trained model weights (`ppo_forex_policy.zip`) on unseen out-of-sample data:
 ```bash
 python src/backtest.py
 ```
 
-### 2. Launch the Interactive Trade Visualizer
+### 2. Run Monte Carlo Stress-Testing & Value at Risk (VaR)
+Execute 2,500 bootstrap permutations with adverse slippage injection to audit drawdown distributions:
+```bash
+python src/stress_test.py
+```
+This generates statistical risk percentiles and saves `reports/monte_carlo_stress_test.png`.
+
+### 3. Launch the Interactive Trade Visualizer
 Generate and open the interactive candlestick visualization with trade entries, take-profits, and trailing stop exits:
 ```bash
 # Windows quick launcher:
@@ -110,13 +153,20 @@ python src/visualize_trades.py
 ```
 This generates and opens `trade_executions.html` in your default browser.
 
-### 3. Launch the Live Telemetry Dashboard
+### 4. Launch the Live Telemetry Dashboard
 Launch the real-time Streamlit monitoring dashboard:
 ```bash
 streamlit run src/dashboard.py
 ```
+*(Deployable for free on [Streamlit Community Cloud](https://share.streamlit.io) by linking your GitHub repository).*
 
-### 4. Train / Fine-Tune the Reinforcement Learning Agent
+### 5. Run the Automated Test Suite
+Run the unit test suite verifying Gymnasium compliance, correlation guards, news shields, and inference:
+```bash
+pytest -v tests/test_system.py
+```
+
+### 6. Train / Fine-Tune the Reinforcement Learning Agent
 Train a new Recurrent PPO policy on multi-asset H4 data:
 ```bash
 # Train from scratch
@@ -126,24 +176,17 @@ python src/train.py
 python src/train.py --resume
 ```
 
-### 5. Run Monte Carlo Stress Test & Value at Risk (VaR)
-Execute 2,500 bootstrap permutations with adverse slippage injection to audit drawdown distributions:
-```bash
-python src/stress_test.py
-```
-This generates statistical risk percentiles and saves `reports/monte_carlo_stress_test.png`.
-
-### 6. Multi-Asset Live / Demo Execution
+### 7. Multi-Asset Live / Demo Execution (24/5 Production)
 Run the live execution daemon connected to MetaTrader 5:
 ```bash
-# Standard direct run:
+# Direct run:
 python src/multi_asset_execution.py
 
-# 24/5 Production Watchdog (Auto-restarts on network/broker drops):
+# 24/5 Production Watchdog (Auto-restarts on network/broker disconnects):
 python scripts/run_daemon_watchdog.py
 ```
 
-### 7. Docker Deployment (Optional)
+### 8. Docker Deployment (Optional)
 Run the live Streamlit dashboard in a Docker container:
 ```bash
 docker compose up
@@ -151,37 +194,18 @@ docker compose up
 
 ---
 
-## System Architecture & Specification
+## Institutional Risk Management Gates
 
-### 1. Selective Gatekeeper Paradigm
-Instead of an always-active trading bot that trades random noise, the system operates as a **Selective Reinforcement Learning Gatekeeper**:
-1. An underlying macroeconomic and market microstructure scanner identifies potential structural pullbacks on **4-Hour (H4) bars**.
-2. A **Recurrent Proximal Policy Optimization (Recurrent PPO with LSTM memory)** neural network evaluates multi-timeframe confluence, order-flow volatility, and session liquidity.
-3. The model applies an **Institutional Conviction Gate ($P \ge 0.88$)** to make a high-conviction binary decision:
-   * **Action 0: Pass (Reject setup)** — Protects capital during low-probability chop.
-   * **Action 1: Execute (Accept setup)** — Enters market order with an asymmetric 2.5 : 1 Reward-to-Risk bracket.
+The execution engine integrates four layers of institutional capital protection:
 
-### 2. 11-Dimensional Normalized State Space
-1. `log_ret`: Continuous logarithmic return: $\ln(\text{Close}_t / \text{Close}_{t-1})$.
-2. `norm_rsi`: 14-period Wilder's RSI, centered at 0 and bounded in $[-1.0, 1.0]$.
-3. `norm_atr`: Normalized ATR (14) scaled by Close price ($\text{ATR} / \text{Close}$).
-4. `norm_vol`: 18-period (3 trading days on H4) rolling Volume Z-Score.
-5. `trend_spread`: Normalized EMA trend spread: $(\text{EMA}_{20} - \text{EMA}_{50}) / \text{Close}$.
-6. `sentiment_score`: FinBERT sentiment polarity score.
-7. `event_surprise`: Economic event surprise capturing rolling 90th percentile volatility spikes.
-8. `time_to_event`: Time-since-shock proximity recovering from 0.0 to 1.0.
-9. `htf_trend_200`: Daily 200 EMA trend spread (shifted by 1 day for strict zero lookahead).
-10. `htf_rsi`: Daily 14-period RSI on prior completed day.
-11. `candidate_direction`: Structural setup direction ($+1$ for Long, $-1$ for Short).
-
-### 3. Market Microstructure & Friction Modeling
-* **Dynamic Session Spreads:** Variable spread factor (1.4x tighter during London/NY overlap from 12:00 to 16:00 UTC).
-* **Stochastic Slippage:** Gaussian adverse slippage proportional to real-time ATR candle volatility.
-* **Institutional ECN Commission:** Deducts standard institutional commission ($3.50/lot per side = 0.6 bps round-trip).
-* **Asymmetric 2.5 : 1 Reward-to-Risk Bracket:** Take-Profit set at $+2.5 \times \text{ATR}$, initial Stop-Loss set at $-1.0 \times \text{ATR}$.
-* **Breakeven Migration:** At $+1.0 \times \text{ATR}$, stop loss moves to Entry + Friction.
-* **Dynamic Trailing Stop:** At $+1.6 \times \text{ATR}$, trailing stop locks in gains $0.85 \times \text{ATR}$ behind peak price.
-* **Stagnation Timeout:** Maximum trade duration capped at 18 H4 bars (72 hours).
+1. **Portfolio Currency Correlation Guard (`check_currency_correlation_limit`)**:
+   Tracks aggregate net exposure across underlying currencies (`USD`, `EUR`, `GBP`, `JPY`). If a position is already Long `EURUSD` (Short USD), a signal to buy `GBPUSD` (also Short USD) is blocked to prevent doubling directional USD risk.
+2. **Friday Weekend Auto-Lockout (`is_weekend_lockout`)**:
+   Freezes new order placement on Friday after 19:00 UTC through Sunday pre-market to shield against adverse weekend geopolitical gaps.
+3. **High-Impact Economic News Shield (`EconomicNewsFilter`)**:
+   Automatically detects scheduled high-impact release windows (such as US Non-Farm Payrolls on the 1st Friday of the month and FOMC interest rate announcements) and pauses order entry during volatility spikes.
+4. **24/5 Watchdog Supervisor (`scripts/run_daemon_watchdog.py`)**:
+   Monitors the daemon continuously, dispatches Discord alerts upon unexpected disconnection, applies exponential backoff, and automatically relaunches the process.
 
 ---
 
