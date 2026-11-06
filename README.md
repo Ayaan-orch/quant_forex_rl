@@ -1,83 +1,173 @@
-# QUANT FOREX RL — INSTITUTIONAL SYSTEM SPECIFICATION & PERFORMANCE AUDIT
+# QUANT FOREX RL — Institutional Multi-Asset Trading System
 
-**Project:** `quant_forex_rl`  
-**Date:** November 2026  
-**Status:** Multi-Asset H4 Policy Trained & Validated (Profit Factor: 1.91, Net Return: +4.06%)  
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-ee4c2c.svg)](https://pytorch.org/)
+[![Stable-Baselines3](https://img.shields.io/badge/SB3-RecurrentPPO-green.svg)](https://github.com/DLR-RM/stable-baselines3)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+An institutional-grade algorithmic trading system for foreign exchange markets. Powered by **Recurrent Proximal Policy Optimization (Recurrent PPO with LSTM memory)**, FinBERT macroeconomic sentiment analysis, multi-timeframe confluence, and an asymmetric **Institutional Conviction Gate ($P \ge 0.88$)**.
+
+![Backtest Performance](backtest_performance.png)
 
 ---
 
-## 1. Executive Summary & Purpose
+## Key Performance Highlights (Out-of-Sample Test)
 
-`quant_forex_rl` is an institutional algorithmic trading system designed to solve the high failure rate of retail technical analysis in foreign exchange markets. 
+* **Profit Factor:** **1.91** (Strong Edge)
+* **Realized Win / Loss Ratio:** **2.73 : 1** (Asymmetric payoff)
+* **Out-of-Sample Return:** **+4.06%** vs. Benchmark **-1.15%** (Outperformed by **+5.21%**)
+* **Max Drawdown:** **-2.02%**
+* **Gatekeeping Pass Rate:** **84.0%** (Filters out low-probability chop)
+* **Sortino Ratio:** **+10.56** | **Calmar Ratio:** **2.01**
 
+---
+
+## Project Structure
+
+```text
+quant_forex_rl/
+├── src/
+│   ├── environment.py           # Gymnasium multi-asset H4 market environment
+│   ├── backtest.py              # Out-of-sample backtest & metrics engine
+│   ├── train.py                 # Recurrent PPO model training pipeline
+│   ├── data_ingestion.py        # MT5 tick-volume & yfinance data pipeline
+│   ├── news_ingestion.py        # FinBERT sentiment feature extractor
+│   ├── live_execution.py        # MT5 single-asset live execution & Discord daemon
+│   ├── multi_asset_execution.py # MT5 multi-asset live execution engine
+│   ├── dashboard.py             # Streamlit live telemetry dashboard
+│   ├── visualize_trades.py      # Plotly interactive candlestick visualizer
+│   └── test_execution.py       # Unit integration & order routing tests
+├── data/
+│   ├── raw_forex.csv            # Raw historical price feed
+│   ├── processed_forex.csv      # H4 resampled OHLCV dataset
+│   ├── processed_market_features.csv # Normalized 11-dim feature matrix
+│   ├── news_headlines.csv       # Financial news & sentiment dataset
+│   └── live_trades_log.csv      # Telemetry trade log
+├── notebooks/
+│   └── finbert_feature_extractor.ipynb # NLP feature extraction notebook
+├── reports/
+│   ├── QUANT_FOREX_RL_SYSTEM_REPORT.md # Full institutional audit report
+│   └── QUANT_FOREX_RL_SYSTEM_REPORT.pdf
+├── backtest_performance.png     # Out-of-sample equity curve & drawdown chart
+├── trade_executions.html        # Interactive HTML trade visualization
+├── ppo_forex_policy.zip         # Pre-trained Recurrent PPO model weights
+├── requirements.txt             # Frozen Python environment dependencies
+├── .env.example                 # Configuration & API credentials template
+├── visualize.bat                # 1-click batch launcher for trade visualizer
+└── LICENSE                      # MIT License
+```
+
+---
+
+## Quick Start & Installation
+
+### 1. Clone Repository & Setup Environment
+```bash
+git clone https://github.com/Ayaan-orch/quant_forex_rl.git
+cd quant_forex_rl
+
+# Create Python virtual environment
+python -m venv .venv
+
+# Activate environment
+# On Windows:
+.\.venv\Scripts\activate
+# On Linux / macOS:
+source .venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+### 2. Configure Environment Variables
+Copy the example environment configuration:
+```bash
+cp .env.example .env
+```
+Open `.env` and fill in optional parameters:
+* `DISCORD_WEBHOOK_URL`: (Optional) Discord Webhook for execution & risk notifications.
+* `MT5_LOGIN`, `MT5_PASSWORD`, `MT5_SERVER`: (Optional) MetaTrader 5 account credentials.
+
+---
+
+## How to Run
+
+### 1. Run the Backtest (Pre-trained Model)
+Evaluate the included pre-trained model weights (`ppo_forex_policy.zip`) on unseen data:
+```bash
+python src/backtest.py
+```
+
+### 2. Launch the Interactive Trade Visualizer
+Generate and open the interactive candlestick visualization with trade entries, take-profits, and trailing stop exits:
+```bash
+# Windows quick launcher:
+visualize.bat
+
+# Or via command line:
+python src/visualize_trades.py
+```
+This generates and opens `trade_executions.html` in your default browser.
+
+### 3. Launch the Live Telemetry Dashboard
+Launch the real-time Streamlit monitoring dashboard:
+```bash
+streamlit run src/dashboard.py
+```
+
+### 4. Train / Fine-Tune the Reinforcement Learning Agent
+Train a new Recurrent PPO policy on multi-asset H4 data:
+```bash
+# Train from scratch
+python src/train.py
+
+# Resume training from existing checkpoint
+python src/train.py --resume
+```
+
+### 5. Multi-Asset Live / Demo Execution
+Run the live execution daemon connected to MetaTrader 5:
+```bash
+python src/multi_asset_execution.py
+```
+
+---
+
+## System Architecture & Specification
+
+### 1. Selective Gatekeeper Paradigm
 Instead of an always-active trading bot that trades random noise, the system operates as a **Selective Reinforcement Learning Gatekeeper**:
 1. An underlying macroeconomic and market microstructure scanner identifies potential structural pullbacks on **4-Hour (H4) bars**.
 2. A **Recurrent Proximal Policy Optimization (Recurrent PPO with LSTM memory)** neural network evaluates multi-timeframe confluence, order-flow volatility, and session liquidity.
 3. The model applies an **Institutional Conviction Gate ($P \ge 0.88$)** to make a high-conviction binary decision:
-   * **Action 0: Pass (Reject / Fold setup)** — Protects capital during low-probability chop.
+   * **Action 0: Pass (Reject setup)** — Protects capital during low-probability chop.
    * **Action 1: Execute (Accept setup)** — Enters market order with an asymmetric 2.5 : 1 Reward-to-Risk bracket.
 
----
-
-## 2. Data Lineage & Feature Engineering Pipeline
-
-### Where is the data coming from?
-The system utilizes a dual-source institutional ingestion engine ([`src/data_ingestion.py`](file:///C:/quant_forex_rl/src/data_ingestion.py)):
-* **Primary Source:** MetaTrader 5 (MT5) broker tick-volume and interbank pricing via the `MetaTrader5` Python API.
-* **Secondary / Offline Fallback:** Yahoo Finance (`yfinance`) downloading high-resolution bars for `USDJPY` (`JPY=X`), `EURUSD` (`EURUSD=X`), and `GBPUSD` (`GBPUSD=X`).
-
-### Timeframe Transformation (H1 to H4):
-Initial prototypes ran on 1-hour (H1) bars, where an average candle was ~16 pips while round-trip friction was ~2.7 pips, creating a devastating **16.9% friction drag**. The pipeline resamples all data into **4-Hour (H4) execution bars** (where ATR expands to 45–95 pips), slashing broker friction drag to **below 2.5% of ATR**.
-
-### The 11-Dimensional Normalized Observation State Space:
+### 2. 11-Dimensional Normalized State Space
 1. `log_ret`: Continuous logarithmic return: $\ln(\text{Close}_t / \text{Close}_{t-1})$.
-2. `norm_rsi`: 14-period Wilder's RSI, centered at 0 and bounded in $[-1.0, 1.0]$: $(\text{RSI} - 50) / 50$.
+2. `norm_rsi`: 14-period Wilder's RSI, centered at 0 and bounded in $[-1.0, 1.0]$.
 3. `norm_atr`: Normalized ATR (14) scaled by Close price ($\text{ATR} / \text{Close}$).
-4. `norm_vol`: 18-period (3 trading days on H4) rolling Volume Z-Score: $(\text{Vol} - \mu) / (\sigma + 10^{-9})$.
+4. `norm_vol`: 18-period (3 trading days on H4) rolling Volume Z-Score.
 5. `trend_spread`: Normalized EMA trend spread: $(\text{EMA}_{20} - \text{EMA}_{50}) / \text{Close}$.
-6. `sentiment_score`: Momentum-sentiment polarity derived from normalized RSI and trend slope.
+6. `sentiment_score`: FinBERT sentiment polarity score.
 7. `event_surprise`: Economic event surprise capturing rolling 90th percentile volatility spikes.
-8. `time_to_event`: Time-since-shock proximity recovering from 0.0 (recent shock) to 1.0 (calm regime).
-9. `htf_trend_200`: Daily 200 EMA trend spread: $(\text{Daily\_Close}_{t-1} - \text{Daily\_EMA200}_{t-1}) / \text{Daily\_Close}_{t-1}$ (Shifted by 1 day for strict zero lookahead).
-10. `htf_rsi`: Daily 14-period RSI on prior completed day: $(\text{Daily\_RSI}_{t-1} - 50) / 50$.
+8. `time_to_event`: Time-since-shock proximity recovering from 0.0 to 1.0.
+9. `htf_trend_200`: Daily 200 EMA trend spread (shifted by 1 day for strict zero lookahead).
+10. `htf_rsi`: Daily 14-period RSI on prior completed day.
 11. `candidate_direction`: Structural setup direction ($+1$ for Long, $-1$ for Short).
 
----
-
-## 3. Market Microstructure & Environment Mechanics
-
-Implemented in [`src/environment.py`](file:///C:/quant_forex_rl/src/environment.py):
-* **Dynamic Session Spreads:** Variable spread factor modeling interbank liquidity (1.4x tighter during London/NY overlap from 12:00 to 16:00 UTC).
+### 3. Market Microstructure & Friction Modeling
+* **Dynamic Session Spreads:** Variable spread factor (1.4x tighter during London/NY overlap from 12:00 to 16:00 UTC).
 * **Stochastic Slippage:** Gaussian adverse slippage proportional to real-time ATR candle volatility.
 * **Institutional ECN Commission:** Deducts standard institutional commission ($3.50/lot per side = 0.6 bps round-trip).
-* **Overnight Financing Swap:** Deducts rollover financing swap for multi-day swing positions held across 24-hour cycles.
 * **Asymmetric 2.5 : 1 Reward-to-Risk Bracket:** Take-Profit set at $+2.5 \times \text{ATR}$, initial Stop-Loss set at $-1.0 \times \text{ATR}$.
 * **Breakeven Migration:** At $+1.0 \times \text{ATR}$, stop loss moves to Entry + Friction.
 * **Dynamic Trailing Stop:** At $+1.6 \times \text{ATR}$, trailing stop locks in gains $0.85 \times \text{ATR}$ behind peak price.
-* **Stagnation Timeout:** Maximum trade duration capped at 18 H4 bars (72 hours); stalled positions exit at market.
-
-### Asymmetric Signal-Detection Reward Function:
-* **True Positive (Winning Trade Taken):** $+2.2 \times \text{normalized return}$
-* **False Positive (Losing Trade Taken):** $-1.0 \times \text{normalized loss}$
-* **False Negative (Winning Trade Passed):** $-1.0 \times \text{normalized return}$ (Opportunity cost penalty)
-* **True Negative (Losing Trade Passed):** $+0.3 \times \text{normalized loss}$ (Disciplined capital defense bonus)
+* **Stagnation Timeout:** Maximum trade duration capped at 18 H4 bars (72 hours).
 
 ---
 
-## 4. Reinforcement Learning Model & Conviction Gating
-
-* **Algorithm:** `sb3_contrib.RecurrentPPO` (`MlpLstmPolicy`).
-* **Architecture:** 64-unit LSTM recurrent layer with temporal memory, feeding into 64-unit policy and value heads.
-* **Hyperparameters:** Learning Rate = $3 \times 10^{-4}$, Batch Size = 64, Rollout Horizon = 256, Epochs = 5, Gamma = 0.95, GAE Lambda = 0.95, Entropy Regularization = 0.04.
-* **The Conviction Gate ($P \ge 0.88$):** Rather than taking any setup with $P > 0.50$, the engine calculates:
-  $$P(\text{Trade}) = \text{Softmax}(\text{Policy Logits})[1]$$
-  Orders are executed **only when model conviction $P \ge 0.88$**, filtering out 84% of low-probability chop.
-
----
-
-## 5. Complete Backtest Statistics Across Every Stage
-
-The table below shows the complete empirical progression on the 20% unseen out-of-sample partition:
+## Empirical Backtest Progression
 
 | Metric | Stage 0: Baseline (H1 EURUSD) | Stage 1: Breakeven (H1 EURUSD) | Stage 2: Clean Setup (H1 EURUSD) | Stage 3: H4 Raw (Multi-Asset) | Final: H4 Gated (Conviction $\ge 0.88$) |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -99,24 +189,12 @@ The table below shows the complete empirical progression on the 20% unseen out-o
 
 ---
 
-## 6. Live Production & Risk Management Infrastructure
+## License
 
-* **Dynamic 1.0% Fixed Fractional Position Sizing (`calculate_position_size`):** Dynamically calculates lot volume so every position risks strictly 1.0% of account equity based on the ATR stop-loss distance.
-* **Daily Drawdown Circuit Breaker:** Automatically halts all order execution if daily floating drawdown breaches -3.0%.
-* **Sleep-Lock Power Daemon (`prevent_sleep`):** Uses Windows `kernel32.SetThreadExecutionState` to prevent OS sleep during live sessions.
-* **Thread-Safe Telemetry Engine (`trades_telemetry.db`):** Records all regime checks, candidate setups, orders, and exits into SQLite and CSV (`live_trades_log.csv`).
-* **Discord Alerts:** Dispatches real-time execution, breakeven, and exit notifications.
-* **Streamlit Dashboard (`src/dashboard.py`):** Real-time web UI showing account equity, active positions, and telemetry.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-## 7. Expected Real-World Results & Safe Deployment Roadmap
+## Disclaimer
 
-### Expected Forward Results:
-* **Trade Frequency:** ~3 to 4 high-conviction trades per month per asset (~10–12 trades/month across the universe).
-* **Expected Return:** When sized at 1.0% risk per trade with a 1.91 Profit Factor and 2.73 Win/Loss ratio, expected net annualized performance is **+15% to +25%** with a maximum expected drawdown below **-6.0%**.
-* **Loss Streaks:** Streaks of 3 to 4 consecutive losses will occur naturally. The 1.0% equity risk model prevents these streaks from causing severe capital impairment.
-
-### Deployment Protocol:
-1. **Step 1 (Demo Forward Testing):** Run `src/multi_asset_execution.py` on an MT5 **Demo Account** for 30 to 60 days.
-2. **Step 2 (Funded Account Transition):** Once the demo forward-test achieves a Profit Factor $\ge 1.50$ across at least 25 trades, transition to funded capital starting with conservative 0.5% risk per trade.
+This software is for educational, research, and algorithmic backtesting purposes only. Foreign exchange trading carries a high level of risk and may not be suitable for all investors. Past performance is no guarantee of future results.

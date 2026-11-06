@@ -10,8 +10,11 @@ __pycache__/
 *$py.class
 *.so
 
-# Data logs & artifacts (optional local state)
-*.zip
+# Data logs & local databases
 *.log
 *.db
 .vscode/
+
+# Archive files (ignore all zips except the trained model weights)
+*.zip
+!ppo_forex_policy.zip
