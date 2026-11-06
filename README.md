@@ -3,6 +3,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-ee4c2c.svg)](https://pytorch.org/)
 [![Stable-Baselines3](https://img.shields.io/badge/SB3-RecurrentPPO-green.svg)](https://github.com/DLR-RM/stable-baselines3)
+[![CI](https://github.com/Ayaan-orch/quant_forex_rl/actions/workflows/ci.yml/badge.svg)](https://github.com/Ayaan-orch/quant_forex_rl/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 An institutional-grade algorithmic trading system for foreign exchange markets. Powered by **Recurrent Proximal Policy Optimization (Recurrent PPO with LSTM memory)**, FinBERT macroeconomic sentiment analysis, multi-timeframe confluence, and an asymmetric **Institutional Conviction Gate ($P \ge 0.88$)**.

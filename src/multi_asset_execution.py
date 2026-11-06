@@ -242,6 +242,60 @@ def fetch_live_features(symbol: str):
         print(f"\nError computing features for {symbol}: {e}")
         return None, None
 
+def get_usd_direction(symbol: str, direction: int) -> int:
+    """Returns +1 for Net Long USD, -1 for Net Short USD, 0 if not involving USD."""
+    sym = symbol.upper()
+    if sym.startswith("USD"):
+        return 1 if direction == 1 else -1
+    elif sym.endswith("USD"):
+        return -1 if direction == 1 else 1
+    return 0
+
+def check_currency_correlation_limit(
+    new_symbol: str, 
+    new_direction: int, 
+    active_positions: list, 
+    max_usd_exposure: int = 1
+) -> tuple:
+    """
+    Guards against portfolio overexposure to USD direction.
+    Prevents stacking correlated positions (e.g. Long EURUSD + Long GBPUSD = 2x Short USD).
+    """
+    new_usd_dir = get_usd_direction(new_symbol, new_direction)
+    if new_usd_dir == 0:
+        return True, "OK"
+    
+    current_net_usd = 0
+    for pos in active_positions:
+        sym = pos.get("symbol", "")
+        d = pos.get("direction", 1)
+        current_net_usd += get_usd_direction(sym, d)
+
+    projected_net_usd = current_net_usd + new_usd_dir
+    if abs(projected_net_usd) > max_usd_exposure:
+        side_str = "Long USD" if projected_net_usd > 0 else "Short USD"
+        return False, f"USD Correlation Cap: Projected {side_str} ({abs(projected_net_usd)}) exceeds max {max_usd_exposure}"
+
+    return True, "OK"
+
+def is_weekend_lockout(dt=None) -> bool:
+    """
+    Prevents order entry before Friday market close and over weekends.
+    Friday 19:00 UTC to Sunday 21:00 UTC is locked out to prevent weekend gap risk.
+    """
+    if dt is None:
+        dt = datetime.now(timezone.utc)
+    weekday = dt.weekday() # 0 = Mon, 4 = Fri, 5 = Sat, 6 = Sun
+    hour = dt.hour
+
+    if weekday == 4 and hour >= 19:
+        return True
+    if weekday == 5:
+        return True
+    if weekday == 6 and hour < 21:
+        return True
+    return False
+
 def calculate_position_size(symbol: str, sl_distance_price: float, risk_pct: float = 0.01) -> float:
     """
     Calculates institutional volatility-adjusted position size.
@@ -462,6 +516,18 @@ def run_multi_daemon():
                             action, _ = model.predict(obs, deterministic=True)
 
                         if action == 1:
+                            if is_weekend_lockout():
+                                print(f" -> {sym} setup confirmed, but blocked by Weekend Lockout (protecting against Monday gaps).")
+                                log_event(sym, "SETUP_SKIPPED_WEEKEND", c_price, c_trend, c_rsi, c_atr, "LOCKED_WEEKEND", candidate_dir)
+                                continue
+
+                            active_list = list(active_tickets.values())
+                            allowed_corr, corr_reason = check_currency_correlation_limit(sym, candidate_dir, active_list)
+                            if not allowed_corr:
+                                print(f" -> {sym} setup confirmed, but blocked by Currency Correlation Guard: {corr_reason}")
+                                log_event(sym, "SETUP_SKIPPED_CORRELATION", c_price, c_trend, c_rsi, c_atr, "CORRELATION_CAP", candidate_dir, status=corr_reason)
+                                continue
+
                             open_positions = mt5.positions_get(magic=MAGIC_NUMBER)
                             total_open = len(open_positions) if open_positions else 0
                             sym_open = [p for p in open_positions if p.symbol == sym] if open_positions else []
